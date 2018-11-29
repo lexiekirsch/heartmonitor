@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+h1 {
+  margin-bottom: -10px;
+  color: white;
+}
+h3, h6 {
+  color: white;
+  margin-top: -10px;
+  margin-bottom: -30px;
+}
+
+body {
+  text-align: center;
+  background-color: gray;
+}
+
+h6 {
+  text-align: right;
+}
+
+.counties {
+  fill: none;
+  stroke: #fff;
+}
+
+.states {
+  fill: none;
+  stroke: #eee;
+  stroke-linejoin: round;
+}
+
+/* TODO: change colors for dramatic effect? */
+.q0-9 { fill:#ffffee; } 
+.q1-9 { fill:#fdffa8; }
+.q2-9 { fill:#f1e183; }
+.q3-9 { fill:#e5c262; }
+.q4-9 { fill:#daa343; }
+.q5-9 { fill:#ce8329; }
+.q6-9 { fill:#c16212; }
+.q7-9 { fill:#b33e02; }
+.q8-9 { fill:#a30000; }
+
+/* Tooltip courtesy of http://bl.ocks.org/d3noob/a22c42db65eb00d4e369 */
+div.tooltip { 
+    position: absolute;     
+    text-align: center;
+    width: 100px;          
+    height: 45px;         
+    padding: 5px; 
+    padding-top: 10px;      
+    font: 12px sans-serif;   
+    color: white; 
+    background: gray; 
+    border: 0px;    
+    border-radius: 8px;     
+    pointer-events: none;     
+}
+
+</style>
+<h1></h1></br>
+<h3></h3></br>
+<svg width="960" height="600"></svg>
+<h6></h6></br>
+<script src="js/d3.v4.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
+<script>
+
+var title = d3.select("h1")
+    .text("Heart Disease Analysis (2014-2016)");
+var subtitle = d3.select("h3")
+    .text("Color darkness indicates higher death rate (Rate is per 100,000)");
+var source = d3.select("h6")
+    .text("Source: CDC");
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+var severityByCounty = d3.map(); // id and value
+
+var quantize = d3.scaleQuantize()
+    .domain([0, 603]) // based on max Value // TODO: make smaller for greater effect?
+    .range(d3.range(9).map(function(i) { return "q" + i + "-9"; }));
+
+var projection = d3.geoAlbersUsa()
+    .scale(1280)
+    .translate([width / 2, height / 2]);
+
+var path = d3.geoPath()
+    .projection(projection);
+
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+d3.queue()
+    .defer(d3.json, "js/us.json")
+    .defer(d3.tsv, "hd_deathrate.tsv", function(d) { 
+      var severity = +d.Value;
+      severityByCounty.set(d.cnty_fips, [severity, d.cnty_name, d.state_abbr]);
+    })
+    .await(ready);
+
+function ready(error, us) {
+  if (error) throw error;
+
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+      .data(topojson.feature(us, us.objects.counties).features)
+    .enter().append("path")
+      .attr("class", function(d) { 
+        if (severityByCounty.get(d.id) != null) {
+          return quantize(severityByCounty.get(d.id)[0]); // get severity
+        }
+        else console.log("FIPS is null ???"); // TODO: fix this
+      })
+      .attr("d", path)
+      .on("mouseover", mouseover)
+      .on("mouseout", mouseout);
+
+  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+      .attr("class", "states")
+      .attr("d", path);
+}
+
+  function mouseover(d) {
+      svg.style('cursor', 'pointer');
+      var county = severityByCounty.get(d.id)[1];
+      var state = severityByCounty.get(d.id)[2];
+      div.transition().duration(50)
+          .style("opacity", 1);
+      div.html(county + ", " + state)
+         .style("left", (d3.event.pageX) + "px")   
+         .style("top", (d3.event.pageY-30) + "px");  
+  }
+
+  function mouseout(d) {
+      svg.style('cursor', 'default');
+      div.transition()
+          .duration(50)
+          .style("opacity", 0);
+  }
+
+</script>
