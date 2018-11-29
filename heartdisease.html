@@ -33,16 +33,15 @@ h6 {
   stroke-linejoin: round;
 }
 
-/* TODO: change colors for dramatic effect? */
-.q0-9 { fill:#ffffee; }
-.q1-9 { fill:#fdffa8; }
-.q2-9 { fill:#f1e183; }
-.q3-9 { fill:#e5c262; }
-.q4-9 { fill:#daa343; }
-.q5-9 { fill:#ce8329; }
-.q6-9 { fill:#c16212; }
-.q7-9 { fill:#b33e02; }
-.q8-9 { fill:#a30000; }
+.q0-9 { fill:#3182bd; } /* dark blue */
+.q1-9 { fill:#9ecae1; } 
+.q2-9 { fill:#eff3ff; } /* light blue */
+.q3-9 { fill:#fee5d9; } /* light red */
+.q4-9 { fill:#fcbba1; } 
+.q5-9 { fill:#fcbba1; }
+.q6-9 { fill:#fb6a4a; }
+.q7-9 { fill:#de2d26; } 
+.q8-9 { fill:#a50f15; } /* dark red */
 
 /* Tooltip courtesy of http://bl.ocks.org/d3noob/a22c42db65eb00d4e369 */
 div.tooltip {
@@ -83,7 +82,7 @@ var svg = d3.select("svg"),
 var severityByCounty = d3.map(); // id and value
 
 var quantize = d3.scaleQuantize()
-    .domain([0, 603]) // based on max Value // TODO: make smaller for greater effect?
+    .domain([0, 603]) // max Value is 603
     .range(d3.range(9).map(function(i) { return "q" + i + "-9"; }));
 
 var projection = d3.geoAlbersUsa()
