@@ -13,6 +13,25 @@ h3, h6 {
   margin-bottom: -30px;
 }
 
+button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin-top: 20px;
+  font-size: 20px;
+  font-family: times new roman;
+  text-align: center;
+  outline: none;
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 5px #999;
+}
+button:hover{background-color: lightgrey;}
+button:active {
+  background-color: lightgrey; 
+  box-shadow: 0 5px #666;
+  transform: translateY(3px);
+}
+
 body {
   text-align: center;
   background-color: gray;
@@ -62,6 +81,8 @@ div.tooltip {
 </style>
 <h1></h1></br>
 <h3></h3></br>
+<button type="button" onclick="deathmap()">Death Rate</button>
+<button type="button" onclick="healthmap()">Healthcare</button>
 <svg width="960" height="600"></svg>
 <h6></h6></br>
 <script src="js/d3.v4.min.js"></script>
@@ -71,7 +92,9 @@ div.tooltip {
 var title = d3.select("h1")
     .text("Heart Disease Analysis (2014-2016)");
 var subtitle = d3.select("h3")
-    .text("Color darkness indicates higher death rate (Rate is per 100,000)");
+    .text("Click the button below to toggle between death rate and healthcare");
+    /* TODO: Note: Color darkness indicates higher death rate (Rate is per 100,000) */
+
 var source = d3.select("h6")
     .text("Source: CDC");
 
@@ -125,6 +148,16 @@ function ready(error, us) {
       .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
       .attr("class", "states")
       .attr("d", path);
+}
+
+function deathmap() {
+  console.log("death");
+  // TODO: switch to deathrate map
+}
+
+function healthmap() {
+  console.log("health");
+  // TODO: switch to healthcare map
 }
 
   function mouseover(d) {
