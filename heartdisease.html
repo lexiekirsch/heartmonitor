@@ -4,63 +4,53 @@
 <style>
 
 h1 {
-  margin-bottom: -10px;
-  color: white;
+    margin-bottom: -10px;
+    color: white;
 }
 h3, h6 {
-  color: white;
-  margin-top: -10px;
-  margin-bottom: -30px;
+    color: white;
+    margin-top: -10px;
+    margin-bottom: -30px;
 }
 
 button {
-  display: inline-block;
-  padding: 10px 20px;
-  margin-top: 20px;
-  font-size: 20px;
-  font-family: times new roman;
-  text-align: center;
-  outline: none;
-  border: none;
-  border-radius: 15px;
-  box-shadow: 0 5px #999;
+    display: inline-block;
+    padding: 10px 20px;
+    margin-top: 20px;
+    font-size: 20px;
+    font-family: times new roman;
+    text-align: center;
+    outline: none;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px #999;
 }
 button:hover{background-color: lightgrey;}
 button:active {
-  background-color: lightgrey; 
-  box-shadow: 0 5px #666;
-  transform: translateY(3px);
+    background-color: lightgrey;
+    box-shadow: 0 5px #666;
+    transform: translateY(3px);
 }
 
 body {
-  text-align: center;
-  background-color: gray;
+    text-align: center;
+    background-color: gray;
 }
 
 h6 {
-  text-align: right;
+    text-align: right;
 }
 
 .counties {
-  fill: none;
-  stroke: #fff;
+    fill: none;
+    stroke: #eee;
 }
 
 .states {
-  fill: none;
-  stroke: #eee;
-  stroke-linejoin: round;
+    fill: none;
+    stroke: #fff;
+    stroke-linejoin: round;
 }
-
-.q0-9 { fill:#3182bd; } /* dark blue */
-.q1-9 { fill:#9ecae1; } 
-.q2-9 { fill:#eff3ff; } /* light blue */
-.q3-9 { fill:#fee5d9; } /* light red */
-.q4-9 { fill:#fcbba1; } 
-.q5-9 { fill:#fcbba1; }
-.q6-9 { fill:#fb6a4a; }
-.q7-9 { fill:#de2d26; } 
-.q8-9 { fill:#a50f15; } /* dark red */
 
 /* Tooltip courtesy of http://bl.ocks.org/d3noob/a22c42db65eb00d4e369 */
 div.tooltip {
@@ -83,102 +73,155 @@ div.tooltip {
 <h3></h3></br>
 <button type="button" onclick="deathmap()">Death Rate</button>
 <button type="button" onclick="healthmap()">Healthcare</button>
-<svg width="960" height="600"></svg>
+<svg width="960" height="600" id="main"></svg>
 <h6></h6></br>
 <script src="js/d3.v4.min.js"></script>
 <script src="js/topojson.v1.min.js"></script>
 <script>
 
-var title = d3.select("h1")
-    .text("Heart Disease Analysis (2014-2016)");
-var subtitle = d3.select("h3")
-    .text("Click the button below to toggle between death rate and healthcare");
-    /* TODO: Note: Color darkness indicates higher death rate (Rate is per 100,000) */
+let severityByCounty = d3.map(), // id and value
+    costByCounty = d3.map();
 
-var source = d3.select("h6")
+let title = d3.select("h1")
+    .text("Heart Disease Analysis (2014-2016)");
+let subtitle = d3.select("h3")
+    .text("Click the button below to toggle between death rate and healthcare");
+/* TODO: Note: Color darkness indicates higher death rate (Rate is per 100,000) */
+
+let source = d3.select("h6")
     .text("Source: CDC");
 
-var svg = d3.select("svg"),
+let svg = d3.select("#main"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
 
-var severityByCounty = d3.map(); // id and value
 
-var quantize = d3.scaleQuantize()
-    .domain([0, 603]) // max Value is 603
-    .range(d3.range(9).map(function(i) { return "q" + i + "-9"; }));
-
-var projection = d3.geoAlbersUsa()
+let projection = d3.geoAlbersUsa()
     .scale(1280)
     .translate([width / 2, height / 2]);
 
-var path = d3.geoPath()
+let path = d3.geoPath()
     .projection(projection);
 
-var div = d3.select("body").append("div")
+let div = d3.select("body").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0);
 
 d3.queue()
     .defer(d3.json, "js/us.json")
     .defer(d3.tsv, "hd_deathrate.tsv", function(d) {
-      var severity = +d.Value;
-      severityByCounty.set(parseInt(d.cnty_fips), [severity, d.cnty_name, d.state_abbr]);
+        let severity = d.Value > 0 ? +d.Value : null;
+        severityByCounty.set(+d.cnty_fips, {'severity':severity,
+                                                     'county':d.cnty_name,
+                                                     'state':d.state_abbr});
+    })
+    .defer(d3.csv, "medicare_costs.csv", function(d) {
+        let cost = d.Value > 0 ? +d.Value : null;
+        costByCounty.set(parseInt(d.cnty_fips), {'cost': cost });
     })
     .await(ready);
 
 function ready(error, us) {
-  if (error) throw error;
+    if (error) throw error;
 
-  svg.append("g")
-      .attr("class", "counties")
-    .selectAll("path")
-      .data(topojson.feature(us, us.objects.counties).features)
-    .enter().append("path")
-      .attr("class", function(d) {
-        if (severityByCounty.get(d.id) != null) {
-          return quantize(severityByCounty.get(d.id)[0]); // get severity
-        }
-      })
-      .attr("d", path)
-      .on("mouseover", mouseover)
-      .on("mouseout", mouseout);
+    // Get range for severity values
+    let severityValues = severityByCounty.values().map(x => x.severity)
+    let severityRange = [Math.min(...severityValues), Math.max(...severityValues)]
+    quantizeSeverity.domain(severityRange);
 
-  svg.append("path")
-      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
-      .attr("class", "states")
-      .attr("d", path);
+    // Get range for cost values
+    let costValues = costByCounty.values().map(x => x.cost)
+    let costRange = [Math.min(...costValues), Math.max(...costValues)]
+    quantizeCost.domain(costRange);
+
+    // Add counties
+    svg.append("g")
+        .attr("class", "counties")
+        .selectAll("path")
+        .data(topojson.feature(us, us.objects.counties).features)
+        .enter().append("path")
+            .attr("class", "cPath")
+            .attr("d", path)
+            .datum(function(d) {
+                severityInfo = severityByCounty.get(d.id);
+                costInfo = costByCounty.get(d.id);
+                return {...severityInfo, ...costInfo}; //Combine data objects
+            })
+            .style('fill', colorBySeverity) //Default colors
+            .on("mouseover", mouseover)
+            .on("mouseout", mouseout);
+
+    // Add states
+    svg.append("path")
+        .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+        .attr("class", "states")
+        .attr("d", path);
 }
+/*****************************************************************************
+                Interactions Handlers
+ *****************************************************************************/
 
 function deathmap() {
-  console.log("death");
-  // TODO: switch to deathrate map
+    console.log("death");
+    d3.selectAll(".cPath").style('fill', colorBySeverity)
 }
 
 function healthmap() {
-  console.log("health");
-  // TODO: switch to healthcare map
+    console.log("health");
+    d3.selectAll(".cPath").style('fill', colorByCost)
 }
 
-  function mouseover(d) {
-      svg.style('cursor', 'pointer');
-      var county = severityByCounty.get(d.id)[1];
-      var state = severityByCounty.get(d.id)[2];
+function mouseover(d) {
+    svg.style('cursor', 'pointer');
+    console.log(d.id);
+    div.transition().duration(50)
+    .style("opacity", 1);
+    div.html(d.county + ", " + d.state)
+    .style("left", (d3.event.pageX) + "px")
+    .style("top", (d3.event.pageY-30) + "px");
+}
 
-      console.log(d.id);
+function mouseout(d) {
+    svg.style('cursor', 'default');
+    div.transition()
+    .duration(50)
+    .style("opacity", 0);
+}
 
-      div.transition().duration(50)
-          .style("opacity", 1);
-      div.html(county + ", " + state)
-         .style("left", (d3.event.pageX) + "px")
-         .style("top", (d3.event.pageY-30) + "px");
-  }
+/*****************************************************************************
+                Color mapping functions and variables
+ *****************************************************************************/
+let steps = 9 // Number of color steps
 
-  function mouseout(d) {
-      svg.style('cursor', 'default');
-      div.transition()
-          .duration(50)
-          .style("opacity", 0);
-  }
+let quantizeSeverity = d3.scaleQuantize()
+    .range(d3.range(steps));
+
+let quantizeCost = d3.scaleQuantize()
+    .range(d3.range(steps));
+
+let sColors = ["#3182bd","#9ecae1","#eff3ff","#fee5d9","#fcbba1","#fcbba1","#fb6a4a","#de2d26","#a50f15"]
+let sColorsRamp = sColors.map(x => d3.rgb(x))
+let severityColorRamp = d3.interpolateRgbBasis(sColorsRamp);
+
+let costColorRamp = d3.interpolateRgbBasis(sColorsRamp);
+
+function colorBySeverity(d){
+    if (d.severity) {
+        let quant = quantizeSeverity(d.severity);
+        return severityColorRamp(quant/steps);
+    } else {
+        return 'grey';
+    }
+}
+
+function colorByCost(d){
+    if (d.cost) {
+        let quant = quantizeCost(d.cost);
+        return costColorRamp(quant/steps);
+    } else {
+        return 'grey';
+    }
+}
+/*****************************************************************************/
 
 </script>
